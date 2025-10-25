@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ART-1 Spam Detector Visualizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    
+    <div class="page-container"> <nav id="sidebar">
+            <button id="close-sidebar-btn" title="Close Index">&times;</button>
+            
+            <h3>Index</h3>
+            <ul>
+                <li><a href="#section-intro">ART-1 Introduction</a></li>
+                <li><a href="#section-how-it-works">How It Works</a></li>
+                <li><a href="#section-controls">Live Controls</a></li>
+                
+                {% if results %}
+                <li><a href="#section-stats">Network Statistics</a></li>
+                <li><a href="#section-graph">Clustering Graph</a></li>
+                <li><a href="#section-clusters">Learned Clusters</a></li>
+                <li><a href="#section-tests">Test Results</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        
+        <main id="main-content">
+            
+            <button id="open-sidebar-btn" title="Open Index">&#9776;</button>
+
+            <div class="container">
+                <h1>ART-1 Spam Detector Visualizer 🧠</h1>
+        
+                <div class="intro-section" id="section-intro">
+                    <div class="intro-text">
+                        <h3>What is ART-1?</h3>
+                        <p>
+                            <strong>Adaptive Resonance Theory 1 (ART-1)</strong> is an unsupervised neural network designed for clustering binary (0s and 1s) patterns. Its key feature is its ability to create new clusters "on the fly" as it encounters new data that doesn't fit existing categories. This is controlled by a <strong>vigilance parameter (ρ)</strong>, which defines how similar a new pattern must be to an existing cluster's prototype to be grouped with it. If no cluster is a good enough match, a new cluster is "adaptively" created.
+                        </p>
+                        <p>
+                            This demo uses ART-1 to cluster emails (converted to binary feature vectors) into "spam" and "ham" categories based on their features.
+                        </p>
+                    </div>
+                    <div class="intro-image">
+                        <img src="{{ url_for('static', filename='img.png') }}" alt="ART1 Architecture Diagram">
+                        <p class="caption">ART-1 Network Architecture</p>
+                    </div>
+                </div>
+        
+                <div class="explanation-section" id="section-how-it-works">
+                    <h2>How It Works: Email to Binary Vector</h2>
+                    <p>ART-1 only understands binary vectors (lists of 0s and 1s). We use a <strong>Feature Extractor</strong> to convert each email into a 40-bit vector. Each bit represents a specific feature, like the presence of a keyword (e.g., "free", "meeting") or a pattern (e.g., "ALL CAPS SUBJECT").</p>
+                    <div class="explanation-container">
+                        {% for item in explanation_data %}
+                        <div class="explanation-card {{ item.type }}">
+                            <h4>Example {{ item.type|capitalize }} Email</h4>
+                            <div class="email-example">
+                                <p><strong>Subject:</strong> {{ item.subject }}</p>
+                                <p><strong>Body:</strong> {{ item.body[:100] }}...</p>
+                            </div>
+                            <div class="arrow-down">↓</div>
+                            <h4>Resulting 40-Bit Binary Vector</h4>
+                            <div class="vector-display">
+                                <code>{{ item.vector }}</code>
+                            </div>
+                            <p class="vector-caption">This vector is the input for the ART-1 network. (1 = Feature Present, 0 = Feature Absent)</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div id="section-controls">
+                    <p class="subtitle">
+                        A visual demonstration of Adaptive Resonance Theory (ART-1) for classifying spam emails. 
+                        Change the <strong>vigilance parameter (ρ)</strong> to see how the number and content of clusters change.
+                    </p>
+            
+                    <div class="controls-box">
+                        <form method="POST" action="/">
+                            <div class="slider-group">
+                                <label for="vigilance">Vigilance (ρ): <span id="vigilance-value">{{ "%.2f"|format(vigilance_default) }}</span></label>
+                                <input type="range" id="vigilance" name="vigilance" 
+                                       min="0.1" max="1.0" step="0.05" 
+                                       value="{{ vigilance_default }}">
+                            </div>
+                            <button type="submit">Recompute Clusters & Run Tests</button>
+                        </form>
+                    </div>
+                </div>
+        
+                {% if results %}
+                <div class="results-area">
+                    
+                    <div id="section-stats">
+                        <h2>Network Statistics</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <span>Total Clusters Created</span>
+                                <strong>{{ results.stats.n_clusters }}</strong>
+                            </div>
+                            <div class="stat-card">
+                                <span>Vigilance (ρ) Used</span>
+                                <strong>{{ "%.2f"|format(results.stats.vigilance) }}</strong>
+                            </div>
+                            <div class="stat-card">
+                                <span>Test Accuracy</span>
+                                <strong>{{ results.accuracy }}%</strong>
+                                <small>({{ results.correct }}/{{ results.total }} correct)</small>
+                            </div>
+                        </div>
+                    </div>
+        
+                    <div id="section-graph">
+                        <h2>Training Clustering Graph</h2>
+                        <div class="graph-section-wrapper">
+                            <svg width="100%" height="{{ graph_data.height }}">
+                                
+                                {% for edge in graph_data.edges %}
+                                    <line x1="{{ edge.x1 }}" y1="{{ edge.y1 }}" x2="{{ edge.x2 }}" y2="{{ edge.y2 }}" 
+                                          class="graph-edge {{ edge.type }}" />
+                                {% endfor %}
+        
+                                {% for node in graph_data.nodes_vectors %}
+                                    <g class="graph-vec-group" 
+                                       data-subject="{{ node.subject }}" 
+                                       data-body="{{ node.body }}">
+                                        <circle cx="{{ node.x }}" cy="{{ node.y }}" r="5" class="graph-node-vec {{ node.type }}" />
+                                        <text x="{{ node.x - 10 }}" y="{{ node.y + 4 }}" class="graph-text-vec">{{ node.name }}</text>
+                                    </g>
+                                {% endfor %}
+        
+                                {% for node in graph_data.nodes_clusters %}
+                                    <rect x="{{ node.x - 50 }}" y="{{ node.y - 15 }}" width="100" height="30" 
+                                          class="graph-node-cluster {{ node.type }}" />
+                                    <text x="{{ node.x }}" y="{{ node.y + 5 }}" class="graph-text-cluster">{{ node.name }}</text>
+                                {% endfor %}
+        
+                            </svg>
+                        </div>
+                    </div>
+        
+        
+                    <div id="section-clusters">
+                        <h2>Learned Clusters (from Training Data)</h2>
+                        <div class="cluster-container">
+                            {% for cluster in results.clusters %}
+                                {% if cluster.emails|length > 0 %}
+                                <div class="cluster-card {{ cluster.label }}">
+                                    <div class="cluster-header">
+                                        <h3>Cluster {{ cluster.id if cluster.id != -1 else 'Unclustered' }}</h3>
+                                        <span class="label {{ cluster.label }}">{{ cluster.label }}</span>
+                                    </div>
+                                    <div class="cluster-content">
+                                        <strong>{{ cluster.emails|length }} emails in this cluster:</strong>
+                                        <ul>
+                                            {% for email in cluster.emails %}
+                                                <li>{{ email }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+        
+                    <div id="section-tests">
+                        <h2>Test Results</h2>
+                        <div class="test-results-container">
+                            {% for test in results.test_results %}
+                            <div class="test-card {{ 'correct' if test.correct else 'incorrect' }}">
+                                <div class="test-status">
+                                    {% if test.correct %}✓{% else %}✗{% endif %}
+                                </div>
+                                <div class="test-content">
+                                    <p><strong>Subject:</strong> {{ test.subject }}</p>
+                                    <p>
+                                        <strong>Prediction:</strong> <span class="label {{ test.prediction }}">{{ test.prediction }}</span>
+                                    </p>
+                                    <p>
+                                        <strong>Expected:</strong> <span class="label {{ test.expected }}">{{ test.expected }}</span>
+                                    </p>
+                                    <small>Assigned to Cluster: {{ test.cluster }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+        
+                </div>
+                {% endif %}
+            </div> </main> </div> <div id="tooltip">
+        <strong></strong>
+        <p></p>
+    </div>
+
+    <script>
+        // Slider value display
+        const slider = document.getElementById('vigilance');
+        const valueDisplay = document.getElementById('vigilance-value');
+        if (slider) {
+            slider.oninput = function() {
+                valueDisplay.textContent = parseFloat(this.value).toFixed(2);
+            }
+        }
+
+        // --- NEW: Sidebar Toggle Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const pageContainer = document.querySelector('.page-container');
+            const openBtn = document.getElementById('open-sidebar-btn');
+            const closeBtn = document.getElementById('close-sidebar-btn');
+
+            if (openBtn) {
+                openBtn.onclick = () => {
+                    pageContainer.classList.remove('sidebar-closed');
+                };
+            }
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    pageContainer.classList.add('sidebar-closed');
+                };
+            }
+
+            // --- Existing Tooltip Logic ---
+            const tooltip = document.getElementById('tooltip');
+            if (!tooltip) return;
+
+            const tooltipSubject = tooltip.querySelector('strong');
+            const tooltipBody = tooltip.querySelector('p');
+            const nodes = document.querySelectorAll('.graph-vec-group');
+
+            nodes.forEach(node => {
+                node.addEventListener('mouseover', function(e) {
+                    const subject = this.dataset.subject;
+                    const body = this.dataset.body;
+
+                    tooltipSubject.textContent = "Subject: " + subject;
+                    tooltipBody.textContent = "Body: " + body.substring(0, 150) + "...";
+                    tooltip.style.display = 'block';
+                });
+
+                node.addEventListener('mousemove', function(e) {
+                    tooltip.style.left = (e.pageX + 15) + 'px';
+                    tooltip.style.top = (e.pageY + 15) + 'px';
+                });
+
+                node.addEventListener('mouseout', function() {
+                    tooltip.style.display = 'none';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
