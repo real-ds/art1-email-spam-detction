@@ -4,6 +4,8 @@ An interactive web application built with Flask to visualize and understand the 
 
 This application is designed as an educational tool to visually explore the effect of the **vigilance parameter ($\rho$)** and the nature of "on-the-fly" cluster creation.
 
+# Application is Live on : https://art1-email-spam-detection.onrender.com/
+
 ## 🚀 Features
 
 * **Interactive Vigilance ($\rho$) Slider:** Dynamically change the ART-1 network's vigilance parameter.
